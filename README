@@ -1,4 +1,7 @@
 somehtml - an incomplete sketch of an html generator
 
+MOTIVATION
+- templates are awful. i'd rather write code.
+
 TODO
 - encode contents and attributes properly
