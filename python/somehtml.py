@@ -1,7 +1,7 @@
 import pprint
 import sys
 import pprint
-import cgi
+import re
 
 singletons = ["BR", "AREA", "LINK", "IMG", "PARAM", "HR", "INPUT", "COL", "BASE", "META"]
 
@@ -14,7 +14,7 @@ class GenericTag(object):
 	def indentstr(self,indent=0):
 		return "".join(map(lambda x: "  ",range(indent + self.indent)))
 	def attribstr(self):
-		return " ".join(map(lambda x: '%s="%s"' % (x,self.attrib[x]), self.attrib.keys()))
+		return " ".join(map(lambda x: '%s="%s"' % ( re.sub(r'^_','',x),self.attrib[x]), self.attrib.keys()))
 	def __repr__(self):
 		return "<%s: %s>" % (type(self), self.render())
 
@@ -24,6 +24,13 @@ class OpenTag(GenericTag):
 			return self.indentstr() + "<%s %s>\n" % (self.name, self.attribstr())
 		else:
 			return self.indentstr() + "<%s>\n" % self.name
+
+class SingleTag(GenericTag):
+	def render(self,indent=0):
+		if self.attrib:
+			return self.indentstr() + "<%s %s />\n" % (self.name, self.attribstr())
+		else:
+			return self.indentstr() + "<%s/>\n" % self.name
 
 class CloseTag(GenericTag):
 	def render(self, indent=0):
@@ -38,7 +45,7 @@ class ItemTag(GenericTag):
 
 class Text(GenericTag):
 	def render(self,indent=0):
-		return self.indentstr() + self.contents
+		return self.indentstr() + self.contents + "\n"
 
 class HTML(object):
 
@@ -60,7 +67,9 @@ class HTML(object):
 	def __addtag(self,args=False,kwargs=False):
 		if self.deck:
 			level = self.getindent()
-			if args:
+			if self.deck.upper() in singletons:
+				self.before.append(SingleTag(name=self.deck, attrib=kwargs, indented=level))
+			elif args:
 				self.before.append(ItemTag(name=self.deck, contents=args[0], indented=level,attrib=kwargs))
 			else:
 				self.before.append(OpenTag(name=self.deck,attrib=kwargs, indented=level))
@@ -78,6 +87,10 @@ class HTML(object):
 		self.__addtag(args=args,kwargs=kwargs)
 		self.deck = False
 		return self
+
+	def text(self, text):
+		level = self.getindent()
+		self.before.append(Text(indented=self.getindent(),contents=text))
 
 	def cursor(self):
 		newdoc = HTML(indent=self.getindent())
@@ -99,12 +112,20 @@ class HTML(object):
 		return out
 
 if __name__ == "__main__":
-	x = HTML().html
-	head = x.head().cursor()
-	body = x.close().body().cursor()
-	x.h1('what')
+	html = HTML().html
+	head = html.head().cursor()
+	body = html.close().body().cursor()
 	head.title("hi!")
 	body.h2("what")
-	head.meta(foo='bar')
-	print x.render()
+	body.div(_class="honk")
+	body.text("what's up?")
+	body.hr()
+	body.table(border=8)
+	for i in range(1,5):
+		body.tr()
+		for j in range(1,5):
+			body.td("%s %s" % ( i,j ))
+		body.close() # the tr is still open
+			
+	print html.render()
 
